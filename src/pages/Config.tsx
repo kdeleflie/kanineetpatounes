@@ -527,50 +527,75 @@ function BackupConfig({ config, services, boardingFeatures, links }: {
         setMessage(null);
         const json = JSON.parse(event.target?.result as string);
         
-        if (!json.data || !json.data.site_config) {
-          throw new Error("Format de fichier invalide.");
+        console.log("Importing backup data:", json);
+        
+        // Comprehensive detection of site configuration
+        let backupContent = json.data || json;
+        let siteConfig = null;
+
+        // Try to find site_config
+        if (backupContent.site_config) {
+          siteConfig = backupContent.site_config;
+        } else if (backupContent.siteConfig) {
+          siteConfig = backupContent.siteConfig;
+        } else if (backupContent.name && (backupContent.email || backupContent.phone)) {
+          // Looks like the site_config object itself
+          siteConfig = backupContent;
+        } else if (Array.isArray(backupContent)) {
+          // If it's an array, try to find an object that looks like site_config
+          siteConfig = backupContent.find((item: any) => 
+            item && typeof item === 'object' && item.name && (item.email || item.phone) && !item.price
+          );
+        }
+        
+        const batch = writeBatch(db);
+        let hasData = false;
+
+        // 1. Restore site_config if found
+        if (siteConfig) {
+          const configRef = doc(db, 'settings', 'site_config');
+          batch.set(configRef, siteConfig);
+          hasData = true;
         }
 
-        const batch = writeBatch(db);
+        // Robust collection data detection
+        const servicesData = backupContent.services || (Array.isArray(json) ? json.filter((item: any) => item.category === 'grooming' || item.category === 'boarding') : []);
+        const featuresData = backupContent.boarding_features || (Array.isArray(json) ? json.filter((item: any) => item.description && item.order && !item.price && !item.email) : []);
+        const linksData = backupContent.links || (Array.isArray(json) ? json.filter((item: any) => item.url && item.label) : []);
 
-        // 1. Restaurer site_config
-        const configRef = doc(db, 'settings', 'site_config');
-        batch.set(configRef, json.data.site_config);
+        if (servicesData.length > 0 || featuresData.length > 0 || linksData.length > 0) {
+          hasData = true;
+        }
 
-        // Note: Pour les autres collections, on va simplement ajouter/écraser.
-        // Comme on utilise des IDs générés par Firestore pour les sous-collections, 
-        // une restauration complète nécessiterait de supprimer les existants d'abord.
-        // Par simplicité et sécurité (pour éviter de tout supprimer en cas de mauvais fichier), 
-        // on va demander confirmation ou simplement écraser si l'ID correspond.
-        
-        // Mais pour une vraie "restauration", on devrait nettoyer. 
-        // Demandons à l'utilisateur via une alerte standard.
-        if (!confirm("Attention : Cette opération va importer les données. Elle n'efface pas vos données actuelles mais peut créer des doublons pour les services et prestations. Continuer ?")) {
+        if (!hasData) {
+          throw new Error("Aucune donnée reconnue n'a été trouvée dans le fichier.");
+        }
+
+        // Confirmation before adding collections
+        if (!confirm("Attention : Cette opération va importer les données détectées. Elle n'efface pas vos données actuelles mais peut créer des doublons. Continuer ?")) {
           setImporting(false);
           return;
         }
 
-        // Restauration des services
-        if (Array.isArray(json.data.services)) {
-          for (const s of json.data.services) {
+        // Robust collection data detection (using already defined servicesData, featuresData, linksData)
+        if (Array.isArray(servicesData)) {
+          for (const s of servicesData) {
             const { id, ...data } = s;
             const ref = id ? doc(db, 'services', id) : doc(collection(db, 'services'));
             batch.set(ref, data);
           }
         }
 
-        // Restauration des features
-        if (Array.isArray(json.data.boarding_features)) {
-          for (const f of json.data.boarding_features) {
+        if (Array.isArray(featuresData)) {
+          for (const f of featuresData) {
             const { id, ...data } = f;
             const ref = id ? doc(db, 'boarding_features', id) : doc(collection(db, 'boarding_features'));
             batch.set(ref, data);
           }
         }
 
-        // Restauration des liens
-        if (Array.isArray(json.data.links)) {
-          for (const l of json.data.links) {
+        if (Array.isArray(linksData)) {
+          for (const l of linksData) {
             const { id, ...data } = l;
             const ref = id ? doc(db, 'links', id) : doc(collection(db, 'links'));
             batch.set(ref, data);

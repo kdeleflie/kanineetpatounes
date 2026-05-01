@@ -52,7 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await signOut(auth);
   };
 
-  const isAdmin = user?.email === "fdeleflie@gmail.com";
+  const isAdmin = user?.email === "fdeleflie@gmail.com" || user?.email === "kdeleflie@gmail.com";
 
   return (
     <AuthContext.Provider value={{ user, loading, isAdmin, login, logout }}>
