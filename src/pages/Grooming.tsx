@@ -37,20 +37,27 @@ export default function Grooming() {
         
         {/* Avant/Après Gallery */}
         {galleryData.length > 0 && (
-          <div className="mt-10 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 auto-rows-min">
+          <div className="mt-10 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 auto-rows-min">
             {galleryData.map((img, i) => (
               <div 
                 key={i} 
                 className={`
                   rounded-2xl overflow-hidden shadow-sm border border-stone-200 bg-stone-100 relative group flex items-center justify-center transition-all duration-300
-                  ${img.size === 'large' ? 'col-span-2 aspect-video' : img.size === 'small' ? 'col-span-1 aspect-square' : 'col-span-1 aspect-square md:aspect-square'}
+                  ${img.size === 'large' 
+                    ? 'col-span-2 md:col-span-4 lg:col-span-6 aspect-[21/9]' 
+                    : img.size === 'medium' 
+                    ? 'col-span-2 md:col-span-2 aspect-video' 
+                    : 'col-span-1 aspect-square'}
                   hover:shadow-md
                 `}
               >
                 <img 
                   src={img.url} 
                   alt={`Réalisation avant/après ${i + 1}`} 
-                  className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 z-10" 
+                  className={`
+                    absolute inset-0 w-full h-full group-hover:scale-105 transition-transform duration-500 z-10
+                    ${config.galleryFit === 'contain' ? 'object-contain p-2' : 'object-cover'}
+                  `}
                   referrerPolicy="no-referrer"
                   onError={(e) => {
                     const target = e.target as HTMLImageElement;

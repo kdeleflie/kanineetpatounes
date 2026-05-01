@@ -191,6 +191,40 @@ function GeneralConfig({ config, onSave }: { config: SiteConfig, onSave: (c: Par
           />
         </div>
 
+        <div className="bg-stone-50 p-6 rounded-2xl border border-stone-100">
+          <label className="block text-sm font-bold text-stone-700 mb-4 uppercase tracking-wider">Réglage global des galeries</label>
+          <div className="grid md:grid-cols-2 gap-4">
+            <button
+              type="button"
+              onClick={() => setLocalConfig({...localConfig, galleryFit: 'cover'})}
+              className={`flex items-center p-4 rounded-xl border transition-all ${
+                localConfig.galleryFit === 'cover' 
+                  ? 'bg-orange-600 border-orange-600 text-white shadow-md' 
+                  : 'bg-white border-stone-200 text-stone-600 hover:border-orange-300'
+              }`}
+            >
+              <div className="text-left">
+                <p className="font-bold">Remplir (Zoom)</p>
+                <p className="text-xs opacity-75">Les photos occupent tout le cadre (peut couper les bords).</p>
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setLocalConfig({...localConfig, galleryFit: 'contain'})}
+              className={`flex items-center p-4 rounded-xl border transition-all ${
+                localConfig.galleryFit === 'contain' 
+                  ? 'bg-orange-600 border-orange-600 text-white shadow-md' 
+                  : 'bg-white border-stone-200 text-stone-600 hover:border-orange-300'
+              }`}
+            >
+              <div className="text-left">
+                <p className="font-bold">Entière (Ajuster)</p>
+                <p className="text-xs opacity-75">L'image est visible à 100% (pas de zoom, mais bords vides possibles).</p>
+              </div>
+            </button>
+          </div>
+        </div>
+
         <GalleryManager 
           images={localConfig.homeGalleryData || []} 
           onChange={newImages => setLocalConfig({...localConfig, homeGalleryData: newImages})}
@@ -783,7 +817,7 @@ function GalleryManager({
                             : 'bg-stone-50 border-stone-100 text-stone-400 hover:border-orange-100'
                         }`}
                      >
-                       {size === 'small' ? 'Petit' : size === 'medium' ? 'Moyen' : 'Grand'}
+                       {size === 'small' ? 'Petit (Carré)' : size === 'medium' ? 'Moyen (Large)' : 'Grand (Bannière)'}
                      </button>
                    ))}
                  </div>

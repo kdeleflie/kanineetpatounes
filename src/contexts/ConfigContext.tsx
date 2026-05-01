@@ -20,6 +20,7 @@ export interface SiteConfig {
   homeGalleryUrls: string;
   homeGalleryData?: GalleryImage[];
   galleryImageSize?: 'small' | 'medium' | 'large';
+  galleryFit?: 'cover' | 'contain';
   formspreeId: string;
 
   // Toilettage (Grooming)
@@ -89,6 +90,7 @@ const DEFAULT_CONFIG: SiteConfig = {
   homeGalleryUrls: "",
   homeGalleryData: [],
   galleryImageSize: 'medium',
+  galleryFit: 'cover',
   formspreeId: "xvovpznl",
 
   groomingSubtitle: "Nous accueillons toutes les races pour des soins adaptés et personnalisés.",
