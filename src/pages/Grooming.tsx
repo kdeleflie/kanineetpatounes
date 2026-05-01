@@ -11,11 +11,13 @@ export default function Grooming() {
 
   const groomingServices = services.filter(s => s.category === 'grooming');
   const groomingListItems = (config.groomingServicesList || '').split('\n').filter(s => s.trim());
-  const galleryUrls = (config.groomingGalleryUrls || '')
-    .split(/[\n,;]+/)
-    .map(s => s.trim().replace(/\s+/g, ''))
-    .filter(Boolean)
-    .slice(0, 6);
+  const galleryData = config.groomingGalleryData && config.groomingGalleryData.length > 0 
+    ? config.groomingGalleryData 
+    : (config.groomingGalleryUrls || '')
+        .split(/[\n,;]+/)
+        .map(s => s.trim().replace(/\s+/g, ''))
+        .filter(Boolean)
+        .map(url => ({ url, size: 'medium' as const }));
 
   return (
     <motion.div 
@@ -34,14 +36,21 @@ export default function Grooming() {
         </p>
         
         {/* Avant/Après Gallery */}
-        {galleryUrls.length > 0 && (
-          <div className="mt-10 grid grid-cols-2 md:grid-cols-3 gap-4">
-            {galleryUrls.map((url, i) => (
-              <div key={i} className="aspect-square rounded-2xl overflow-hidden shadow-sm border border-stone-200 bg-stone-100 relative group flex items-center justify-center">
+        {galleryData.length > 0 && (
+          <div className="mt-10 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 auto-rows-min">
+            {galleryData.map((img, i) => (
+              <div 
+                key={i} 
+                className={`
+                  rounded-2xl overflow-hidden shadow-sm border border-stone-200 bg-stone-100 relative group flex items-center justify-center transition-all duration-300
+                  ${img.size === 'large' ? 'col-span-2 aspect-video' : img.size === 'small' ? 'col-span-1 aspect-square' : 'col-span-1 aspect-square md:aspect-square'}
+                  hover:shadow-md
+                `}
+              >
                 <img 
-                  src={url} 
+                  src={img.url} 
                   alt={`Réalisation avant/après ${i + 1}`} 
-                  className="absolute inset-0 w-full h-full object-cover hover:scale-105 transition-transform duration-500 z-10" 
+                  className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 z-10" 
                   referrerPolicy="no-referrer"
                   onError={(e) => {
                     const target = e.target as HTMLImageElement;
@@ -50,7 +59,7 @@ export default function Grooming() {
                     if (parent && !parent.querySelector('.error-msg')) {
                       const errorDiv = document.createElement('div');
                       errorDiv.className = 'error-msg flex flex-col items-center justify-center p-4 text-center z-0 w-full h-full';
-                      errorDiv.innerHTML = '<span class="text-red-500 font-bold mb-1 text-sm bg-red-50 px-2 py-1 rounded">URL Invalide</span><span class="text-xs text-stone-500 max-w-full break-all mt-2">' + url.substring(0, 30) + '...</span>';
+                      errorDiv.innerHTML = '<span class="text-red-500 font-bold mb-1 text-sm bg-red-50 px-2 py-1 rounded">URL Invalide</span>';
                       parent.appendChild(errorDiv);
                     }
                   }}

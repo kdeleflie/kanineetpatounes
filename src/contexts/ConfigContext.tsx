@@ -2,6 +2,11 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { doc, onSnapshot, collection, query, orderBy, setDoc } from 'firebase/firestore';
 
+export interface GalleryImage {
+  url: string;
+  size: 'small' | 'medium' | 'large';
+}
+
 export interface SiteConfig {
   name: string;
   tagline: string;
@@ -13,11 +18,14 @@ export interface SiteConfig {
   logoSeed: string; // Keeping for backward compatibility or future use
   heroImageUrl: string;
   homeGalleryUrls: string;
+  homeGalleryData?: GalleryImage[];
+  galleryImageSize?: 'small' | 'medium' | 'large';
   formspreeId: string;
 
   // Toilettage (Grooming)
   groomingSubtitle: string;
   groomingGalleryUrls: string;
+  groomingGalleryData?: GalleryImage[];
   groomingServicesList: string;
   groomingServicesTitle: string;
   groomingServicesNote: string;
@@ -79,10 +87,13 @@ const DEFAULT_CONFIG: SiteConfig = {
   logoSeed: "vibrant",
   heroImageUrl: "https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?q=80&w=1000",
   homeGalleryUrls: "",
+  homeGalleryData: [],
+  galleryImageSize: 'medium',
   formspreeId: "xvovpznl",
 
   groomingSubtitle: "Nous accueillons toutes les races pour des soins adaptés et personnalisés.",
   groomingGalleryUrls: "",
+  groomingGalleryData: [],
   groomingServicesList: "Bain, brushing et démêlage soigneux\nTonte adaptée à la race et à la saison\nCoupe ciseaux pour une finition parfaite\nÉpilation (Trimming) pour les races à poil dur\nCoupe des griffes incluse\nNettoyage des oreilles et des yeux",
   groomingServicesTitle: "Nos Prestations",
   groomingServicesNote: "Nous utilisons des produits de haute qualité adaptés au type de poil et à la peau de votre animal.",

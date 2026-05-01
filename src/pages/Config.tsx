@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useConfig, SiteConfig, Service, BoardingFeature, ExternalLink } from '../contexts/ConfigContext';
+import { useConfig, SiteConfig, Service, BoardingFeature, ExternalLink, GalleryImage } from '../contexts/ConfigContext';
 import { useAuth } from '../contexts/AuthContext';
 import { motion } from 'motion/react';
 import { Save, Plus, Trash2, LogIn, LogOut, Settings, List, Phone, Clock, Link as LinkIcon, Database, Download, Upload, AlertTriangle } from 'lucide-react';
@@ -137,10 +137,18 @@ function TabButton({ active, onClick, icon, label }: { active: boolean, onClick:
 
 function GeneralConfig({ config, onSave }: { config: SiteConfig, onSave: (c: Partial<SiteConfig>) => Promise<void> }) {
   const [localConfig, setLocalConfig] = useState(config);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(localConfig);
+    setSaveStatus('saving');
+    try {
+      await onSave(localConfig);
+      setSaveStatus('success');
+      setTimeout(() => setSaveStatus('idle'), 3000);
+    } catch (err) {
+      setSaveStatus('error');
+    }
   };
 
   return (
@@ -182,17 +190,12 @@ function GeneralConfig({ config, onSave }: { config: SiteConfig, onSave: (c: Par
             onChange={e => setLocalConfig({...localConfig, heroImageUrl: e.target.value})}
           />
         </div>
-        <div>
-          <label className="block text-sm font-medium text-stone-700 mb-2">Galerie Photos Accueil (1 lien par ligne, max 6)</label>
-          <textarea
-            className="w-full px-4 py-3 rounded-lg border border-stone-200 outline-none focus:ring-2 focus:ring-orange-500 font-mono text-sm"
-            rows={4}
-            placeholder="https://..."
-            value={localConfig.homeGalleryUrls || ''}
-            onChange={e => setLocalConfig({...localConfig, homeGalleryUrls: e.target.value})}
-          />
-          <p className="text-xs text-stone-500 mt-1">S'afficheront sous l'en-tête de la page d'accueil. Assurez-vous que le lien se termine bien par .jpg ou .png</p>
-        </div>
+
+        <GalleryManager 
+          images={localConfig.homeGalleryData || []} 
+          onChange={newImages => setLocalConfig({...localConfig, homeGalleryData: newImages})}
+        />
+        
         <div className="grid md:grid-cols-2 gap-6">
           <InputField label="Adresse" value={localConfig.address} onChange={v => setLocalConfig({...localConfig, address: v})} />
           <InputField label="Téléphone" value={localConfig.phone} onChange={v => setLocalConfig({...localConfig, phone: v})} />
@@ -222,17 +225,12 @@ function GeneralConfig({ config, onSave }: { config: SiteConfig, onSave: (c: Par
             onChange={e => setLocalConfig({...localConfig, groomingSubtitle: e.target.value})}
           />
         </div>
-        <div>
-          <label className="block text-sm font-medium text-stone-700 mb-2">Photos Avant / Après (1 lien d'image par ligne, max 6)</label>
-          <textarea
-            className="w-full px-4 py-3 rounded-lg border border-stone-200 outline-none focus:ring-2 focus:ring-orange-500 font-mono text-sm"
-            rows={4}
-            placeholder="https://..."
-            value={localConfig.groomingGalleryUrls || ''}
-            onChange={e => setLocalConfig({...localConfig, groomingGalleryUrls: e.target.value})}
-          />
-          <p className="text-xs text-stone-500 mt-1">Collez ici les adresses (URL) de vos photos. Assurez-vous que le lien se termine bien par .jpg ou .png</p>
-        </div>
+        <GalleryManager 
+          images={localConfig.groomingGalleryData || []} 
+          onChange={newImages => setLocalConfig({...localConfig, groomingGalleryData: newImages})}
+          title="Photos Avant / Après"
+          subtitle="Montrez le résultat de vos soins avec des photos avant/après."
+        />
         <div className="grid md:grid-cols-2 gap-6">
           <InputField label="Titre section 'Prestations'" value={localConfig.groomingServicesTitle} onChange={v => setLocalConfig({...localConfig, groomingServicesTitle: v})} />
           <InputField label="Titre section 'Tarifs'" value={localConfig.groomingPricingTitle} onChange={v => setLocalConfig({...localConfig, groomingPricingTitle: v})} />
@@ -311,10 +309,34 @@ function GeneralConfig({ config, onSave }: { config: SiteConfig, onSave: (c: Par
         </div>
       </div>
 
-      <button type="submit" className="sticky bottom-4 flex items-center px-6 py-3 bg-stone-900 text-white rounded-xl shadow-lg hover:bg-stone-800 transition-colors w-full justify-center">
-        <Save className="w-5 h-5 mr-2" />
-        Sauvegarder tous les textes
-      </button>
+      <div className="sticky bottom-4 w-full">
+        <button 
+          type="submit" 
+          disabled={saveStatus === 'saving'}
+          className={`flex items-center px-6 py-3 rounded-xl shadow-lg transition-all w-full justify-center font-bold relative overflow-hidden ${
+            saveStatus === 'success' 
+              ? 'bg-green-600 text-white' 
+              : saveStatus === 'error'
+              ? 'bg-red-600 text-white'
+              : 'bg-stone-900 text-white hover:bg-stone-800'
+          }`}
+        >
+          {saveStatus === 'saving' ? (
+            <span className="flex items-center">
+              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Enregistrement...
+            </span>
+          ) : (
+            <>
+              <Save className="w-5 h-5 mr-2" />
+              {saveStatus === 'success' ? '✅ Sauvegardé avec succès !' : saveStatus === 'error' ? '❌ Erreur de sauvegarde' : 'Sauvegarder tous les textes'}
+            </>
+          )}
+        </button>
+      </div>
     </form>
   );
 }
@@ -688,6 +710,102 @@ function BackupConfig({ config, services, boardingFeatures, links }: {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function GalleryManager({ 
+  images, 
+  onChange,
+  title = "Galerie Photos Accueil",
+  subtitle = "Ajoutez autant de photos que vous le souhaitez et choisissez leur format."
+}: { 
+  images: GalleryImage[], 
+  onChange: (images: GalleryImage[]) => void,
+  title?: string,
+  subtitle?: string
+}) {
+  const addImage = () => {
+    onChange([...images, { url: '', size: 'medium' }]);
+  };
+
+  const removeImage = (index: number) => {
+    onChange(images.filter((_, i) => i !== index));
+  };
+
+  const updateImage = (index: number, updates: Partial<GalleryImage>) => {
+    const newImages = [...images];
+    newImages[index] = { ...newImages[index], ...updates };
+    onChange(newImages);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center bg-stone-50 p-4 rounded-xl border border-stone-200">
+        <div>
+          <h4 className="font-bold text-stone-800">{title}</h4>
+          <p className="text-xs text-stone-500">{subtitle}</p>
+        </div>
+        <button 
+          type="button" 
+          onClick={addImage}
+          className="flex items-center px-4 py-2 bg-stone-900 text-white rounded-lg hover:bg-stone-800 transition-colors text-sm"
+        >
+          <Plus className="w-4 h-4 mr-1" /> Ajouter une photo
+        </button>
+      </div>
+
+      <div className="grid gap-4">
+        {images.map((img, index) => (
+          <div key={index} className="flex gap-4 p-4 bg-white rounded-xl border border-stone-200 shadow-sm relative group items-start">
+             <div className="flex-1 space-y-4">
+               <div>
+                  <label className="block text-xs font-bold text-stone-400 uppercase mb-1">URL de l'image {index + 1}</label>
+                  <input 
+                    type="url"
+                    placeholder="https://i.postimg.cc/..."
+                    className="w-full px-3 py-2 rounded-lg border border-stone-100 outline-none focus:ring-2 focus:ring-orange-500 text-sm font-mono"
+                    value={img.url}
+                    onChange={e => updateImage(index, { url: e.target.value })}
+                  />
+               </div>
+               <div className="flex items-center gap-4">
+                 <span className="text-xs font-bold text-stone-400 uppercase">Format :</span>
+                 <div className="flex gap-2">
+                   {(['small', 'medium', 'large'] as const).map(size => (
+                     <button
+                        key={size}
+                        type="button"
+                        onClick={() => updateImage(index, { size })}
+                        className={`px-3 py-1 rounded-full text-xs font-bold transition-all border ${
+                          img.size === size 
+                            ? 'bg-orange-100 border-orange-200 text-orange-700' 
+                            : 'bg-stone-50 border-stone-100 text-stone-400 hover:border-orange-100'
+                        }`}
+                     >
+                       {size === 'small' ? 'Petit' : size === 'medium' ? 'Moyen' : 'Grand'}
+                     </button>
+                   ))}
+                 </div>
+               </div>
+             </div>
+             <button 
+                type="button"
+                onClick={() => removeImage(index)}
+                className="p-2 text-stone-300 hover:text-red-500 transition-colors"
+             >
+               <Trash2 className="w-5 h-5" />
+             </button>
+          </div>
+        ))}
+      </div>
+      
+      {images.length === 0 && (
+        <div className="text-center py-10 border-2 border-dashed border-stone-100 rounded-2xl">
+          <Database className="w-10 h-10 text-stone-200 mx-auto mb-2" />
+          <p className="text-stone-400 text-sm">Aucune photo dans la galerie. Cliquez sur le bouton "Ajouter" pour commencer.</p>
+        </div>
+      )}
     </div>
   );
 }
