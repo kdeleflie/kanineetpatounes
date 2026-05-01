@@ -52,7 +52,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await signOut(auth);
   };
 
-  const isAdmin = user?.email === "fdeleflie@gmail.com" || user?.email === "kdeleflie@gmail.com";
+  const isAdmin = user?.email?.toLowerCase() === "fdeleflie@gmail.com" || user?.email?.toLowerCase() === "kdeleflie@gmail.com";
+
+  if (user) {
+    console.log("Current User Email:", user.email);
+    console.log("Is Admin:", isAdmin);
+  }
 
   return (
     <AuthContext.Provider value={{ user, loading, isAdmin, login, logout }}>
