@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useConfig, SiteConfig, Service, BoardingFeature, ExternalLink } from '../contexts/ConfigContext';
 import { useAuth } from '../contexts/AuthContext';
 import { motion } from 'motion/react';
-import { Save, Plus, Trash2, LogIn, Settings, List, Phone, Clock, Link as LinkIcon, Database, Download, Upload, AlertTriangle } from 'lucide-react';
+import { Save, Plus, Trash2, LogIn, LogOut, Settings, List, Phone, Clock, Link as LinkIcon, Database, Download, Upload, AlertTriangle } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { doc, deleteDoc, setDoc, collection, addDoc, getDocs, writeBatch } from 'firebase/firestore';
 import ReactQuill from 'react-quill-new';
@@ -20,15 +20,28 @@ export default function Config() {
       <div className="max-w-md mx-auto mt-20 p-8 bg-white rounded-2xl shadow-lg border border-stone-100 text-center">
         <Settings className="w-12 h-12 text-stone-300 mx-auto mb-4" />
         <h1 className="text-2xl font-bold text-stone-900 mb-6">Administration</h1>
-        <p className="text-stone-600 mb-8">
-          Veuillez vous connecter avec votre compte administrateur pour modifier le site.
-        </p>
+        {user ? (
+          <div className="mb-8">
+            <p className="text-stone-600 mb-2">
+              Connecté en tant que : <span className="font-semibold text-stone-900">{user.email}</span>
+            </p>
+            <div className="p-4 bg-red-50 rounded-xl border border-red-100 text-red-600 text-sm">
+              <p className="font-bold mb-1">Accès Restreint</p>
+              <p>Votre compte n'est pas reconnu comme administrateur.</p>
+              <p className="mt-2 text-xs opacity-75">Status: {isAdmin ? 'Admin' : 'Utilisateur'} | Email: {user.email}</p>
+            </div>
+          </div>
+        ) : (
+          <p className="text-stone-600 mb-8">
+            Veuillez vous connecter avec votre compte administrateur pour modifier le site.
+          </p>
+        )}
         <button
-          onClick={login}
+          onClick={user ? logout : login}
           className="w-full flex items-center justify-center px-6 py-3 bg-orange-600 text-white font-medium rounded-xl hover:bg-orange-700 transition-colors"
         >
-          <LogIn className="w-5 h-5 mr-2" />
-          Se connecter avec Google
+          {user ? <LogOut className="w-5 h-5 mr-2" /> : <LogIn className="w-5 h-5 mr-2" />}
+          {user ? "Se déconnecter" : "Se connecter avec Google"}
         </button>
       </div>
     );

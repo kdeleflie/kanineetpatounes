@@ -52,12 +52,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await signOut(auth);
   };
 
-  const isAdmin = user?.email?.toLowerCase() === "fdeleflie@gmail.com" || user?.email?.toLowerCase() === "kdeleflie@gmail.com";
+  const isAdmin = !!user && [
+    "fdeleflie@gmail.com",
+    "kdeleflie@gmail.com",
+    "kanineetpatounes@gmail.com"
+  ].includes(user.email?.toLowerCase() || "");
 
-  if (user) {
-    console.log("Current User Email:", user.email);
-    console.log("Is Admin:", isAdmin);
-  }
+  useEffect(() => {
+    if (user) {
+      console.log("Auth Status - Email:", user.email, "Is Admin:", isAdmin);
+    }
+  }, [user, isAdmin]);
 
   return (
     <AuthContext.Provider value={{ user, loading, isAdmin, login, logout }}>
