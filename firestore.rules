@@ -1,0 +1,120 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isVerified() && request.auth.token.email == "fdeleflie@gmail.com";
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Validation Blueprints ---
+
+    function isValidSiteConfig(data) {
+      return data.keys().hasAll(['name', 'address', 'phone', 'email']) &&
+             data.name is string && data.name.size() <= 200 &&
+             data.address is string && data.address.size() <= 500 &&
+             data.phone is string && data.phone.size() <= 50 &&
+             data.email is string && data.email.size() <= 200 &&
+             (!('tagline' in data) || (data.tagline is string && data.tagline.size() <= 500)) &&
+             (!('description' in data) || (data.description is string && data.description.size() <= 5000)) &&
+             (!('hours' in data) || (data.hours is string && data.hours.size() <= 500)) &&
+             (!('logoSeed' in data) || (data.logoSeed is string && data.logoSeed.size() <= 50)) &&
+             (!('heroImageUrl' in data) || (data.heroImageUrl is string && data.heroImageUrl.size() <= 1000)) &&
+             (!('homeGalleryUrls' in data) || (data.homeGalleryUrls is string && data.homeGalleryUrls.size() <= 5000)) &&
+             (!('formspreeId' in data) || (data.formspreeId is string && data.formspreeId.size() <= 50)) &&
+             (!('groomingSubtitle' in data) || (data.groomingSubtitle is string && data.groomingSubtitle.size() <= 500)) &&
+             (!('groomingGalleryUrls' in data) || (data.groomingGalleryUrls is string && data.groomingGalleryUrls.size() <= 5000)) &&
+             (!('groomingServicesList' in data) || (data.groomingServicesList is string && data.groomingServicesList.size() <= 5000)) &&
+             (!('groomingServicesTitle' in data) || (data.groomingServicesTitle is string && data.groomingServicesTitle.size() <= 200)) &&
+             (!('groomingServicesNote' in data) || (data.groomingServicesNote is string && data.groomingServicesNote.size() <= 1000)) &&
+             (!('groomingPricingTitle' in data) || (data.groomingPricingTitle is string && data.groomingPricingTitle.size() <= 200)) &&
+             (!('groomingPricingNote' in data) || (data.groomingPricingNote is string && data.groomingPricingNote.size() <= 1000)) &&
+             (!('boardingSubtitle' in data) || (data.boardingSubtitle is string && data.boardingSubtitle.size() <= 500)) &&
+             (!('boardingComfortTitle' in data) || (data.boardingComfortTitle is string && data.boardingComfortTitle.size() <= 200)) &&
+             (!('boardingPricingTitle' in data) || (data.boardingPricingTitle is string && data.boardingPricingTitle.size() <= 200)) &&
+             (!('boardingPricingNote' in data) || (data.boardingPricingNote is string && data.boardingPricingNote.size() <= 1000)) &&
+             (!('boardingAlertTitle' in data) || (data.boardingAlertTitle is string && data.boardingAlertTitle.size() <= 200)) &&
+             (!('boardingAlertContent' in data) || (data.boardingAlertContent is string && data.boardingAlertContent.size() <= 1000)) &&
+             (!('boardingConditionsTitle' in data) || (data.boardingConditionsTitle is string && data.boardingConditionsTitle.size() <= 200)) &&
+             (!('boardingConditionsContent' in data) || (data.boardingConditionsContent is string && data.boardingConditionsContent.size() <= 5000)) &&
+             data.keys().size() <= 30;
+    }
+
+    function isValidService(data) {
+      return data.keys().hasAll(['title', 'price', 'category', 'order']) &&
+             data.title is string && data.title.size() <= 200 &&
+             data.price is string && data.price.size() <= 100 &&
+             data.category in ['grooming', 'boarding'] &&
+             data.order is number &&
+             data.keys().size() == 4;
+    }
+
+    function isValidBoardingFeature(data) {
+      return data.keys().hasAll(['title', 'description', 'order']) &&
+             data.title is string && data.title.size() <= 200 &&
+             data.description is string && data.description.size() <= 1000 &&
+             data.order is number &&
+             data.keys().size() == 3;
+    }
+
+    function isValidExternalLink(data) {
+      return data.keys().hasAll(['label', 'url', 'order']) &&
+             data.label is string && data.label.size() <= 200 &&
+             data.url is string && data.url.size() <= 1000 &&
+             data.order is number &&
+             data.keys().size() == 3;
+    }
+
+    // --- Collections ---
+
+    match /settings/site_config {
+      allow read: if true;
+      allow write: if isAdmin() && isValidSiteConfig(incoming());
+    }
+
+    match /services/{serviceId} {
+      allow read: if true;
+      allow create: if isAdmin() && isValidId(serviceId) && isValidService(incoming());
+      allow update: if isAdmin() && isValidService(incoming());
+      allow delete: if isAdmin();
+    }
+
+    match /boarding_features/{featureId} {
+      allow read: if true;
+      allow create: if isAdmin() && isValidId(featureId) && isValidBoardingFeature(incoming());
+      allow update: if isAdmin() && isValidBoardingFeature(incoming());
+      allow delete: if isAdmin();
+    }
+
+    match /links/{linkId} {
+      allow read: if true;
+      allow create: if isAdmin() && isValidId(linkId) && isValidExternalLink(incoming());
+      allow update: if isAdmin() && isValidExternalLink(incoming());
+      allow delete: if isAdmin();
+    }
+  }
+}

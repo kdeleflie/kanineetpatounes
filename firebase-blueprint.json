@@ -1,0 +1,85 @@
+{
+  "entities": {
+    "SiteConfig": {
+      "title": "Site Configuration",
+      "description": "Global settings for the website content",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Name of the business" },
+        "tagline": { "type": "string", "description": "Short slogan or tagline" },
+        "description": { "type": "string", "description": "Longer description for the home page" },
+        "address": { "type": "string", "description": "Business location" },
+        "phone": { "type": "string", "description": "Contact phone number" },
+        "email": { "type": "string", "description": "Contact email address" },
+        "hours": { "type": "string", "description": "Operating hours text" },
+        "logoSeed": { "type": "string", "description": "Seed for logo placeholder" },
+        "heroImageUrl": { "type": "string" },
+        "homeGalleryUrls": { "type": "string" },
+        "formspreeId": { "type": "string" },
+        "groomingSubtitle": { "type": "string" },
+        "groomingGalleryUrls": { "type": "string" },
+        "groomingServicesList": { "type": "string" },
+        "groomingServicesTitle": { "type": "string" },
+        "groomingServicesNote": { "type": "string" },
+        "groomingPricingTitle": { "type": "string" },
+        "groomingPricingNote": { "type": "string" },
+        "boardingSubtitle": { "type": "string" },
+        "boardingComfortTitle": { "type": "string" },
+        "boardingPricingTitle": { "type": "string" },
+        "boardingPricingNote": { "type": "string" },
+        "boardingAlertTitle": { "type": "string" },
+        "boardingAlertContent": { "type": "string" },
+        "boardingConditionsTitle": { "type": "string" },
+        "boardingConditionsContent": { "type": "string" }
+      },
+      "required": ["name", "address", "phone", "email"]
+    },
+    "Service": {
+      "title": "Service",
+      "description": "A grooming or boarding service/pricing item",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "price": { "type": "string" },
+        "category": { "type": "string", "enum": ["grooming", "boarding"] },
+        "order": { "type": "number" }
+      }
+    },
+    "BoardingFeature": {
+        "title": "Boarding Feature",
+        "type": "object",
+        "properties": {
+            "title": { "type": "string" },
+            "description": { "type": "string" },
+            "order": { "type": "number" }
+        }
+    },
+    "ExternalLink": {
+        "title": "External Link",
+        "type": "object",
+        "properties": {
+            "label": { "type": "string" },
+            "url": { "type": "string" },
+            "order": { "type": "number" }
+        }
+    }
+  },
+  "firestore": {
+    "/settings/site_config": {
+      "schema": "SiteConfig",
+      "description": "The main site configuration"
+    },
+    "/services/{serviceId}": {
+      "schema": "Service",
+      "description": "List of grooming or price services"
+    },
+    "/boarding_features/{featureId}": {
+        "schema": "BoardingFeature",
+        "description": "Features of the boarding service"
+    },
+    "/links/{linkId}": {
+        "schema": "ExternalLink",
+        "description": "External links (e.g. to future pension)"
+    }
+  }
+}
