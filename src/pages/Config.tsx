@@ -2,16 +2,16 @@ import React, { useState } from 'react';
 import { useConfig, SiteConfig, Service, BoardingFeature, ExternalLink } from '../contexts/ConfigContext';
 import { useAuth } from '../contexts/AuthContext';
 import { motion } from 'motion/react';
-import { Save, Plus, Trash2, LogIn, Settings, List, Phone, Clock, Link as LinkIcon } from 'lucide-react';
+import { Save, Plus, Trash2, LogIn, Settings, List, Phone, Clock, Link as LinkIcon, Database, Download, Upload, AlertTriangle } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from '../firebase';
-import { doc, deleteDoc, setDoc, collection, addDoc } from 'firebase/firestore';
+import { doc, deleteDoc, setDoc, collection, addDoc, getDocs, writeBatch } from 'firebase/firestore';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
 
 export default function Config() {
   const { config, services, boardingFeatures, links, updateConfig, loading } = useConfig();
   const { user, isAdmin, login, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState<'general' | 'services' | 'boarding' | 'links'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'services' | 'boarding' | 'links' | 'backup'>('general');
 
   if (loading) return <div className="p-10 text-center">Chargement...</div>;
 
@@ -76,6 +76,12 @@ export default function Config() {
             icon={<LinkIcon className="w-5 h-5" />} 
             label="Liens" 
           />
+          <TabButton 
+            active={activeTab === 'backup'} 
+            onClick={() => setActiveTab('backup')} 
+            icon={<Database className="w-5 h-5" />} 
+            label="Sauvegarde" 
+          />
         </div>
 
         {/* Form Content */}
@@ -85,6 +91,14 @@ export default function Config() {
             {activeTab === 'services' && <ServicesConfig services={services} />}
             {activeTab === 'boarding' && <BoardingConfig features={boardingFeatures} />}
             {activeTab === 'links' && <LinksConfig links={links} />}
+            {activeTab === 'backup' && (
+              <BackupConfig 
+                config={config} 
+                services={services} 
+                boardingFeatures={boardingFeatures} 
+                links={links} 
+              />
+            )}
           </div>
         </div>
       </div>
@@ -468,6 +482,176 @@ function LinksConfig({ links }: { links: ExternalLink[] }) {
         </div>
       </div>
     );
+}
+
+function BackupConfig({ config, services, boardingFeatures, links }: { 
+  config: any, 
+  services: any[], 
+  boardingFeatures: any[], 
+  links: any[] 
+}) {
+  const [importing, setImporting] = useState(false);
+  const [message, setMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
+
+  const handleExport = () => {
+    const backupData = {
+      version: "1.0",
+      timestamp: new Date().toISOString(),
+      data: {
+        site_config: config,
+        services: services,
+        boarding_features: boardingFeatures,
+        links: links
+      }
+    };
+
+    const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `backup-kanine-patounes-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        setImporting(true);
+        setMessage(null);
+        const json = JSON.parse(event.target?.result as string);
+        
+        if (!json.data || !json.data.site_config) {
+          throw new Error("Format de fichier invalide.");
+        }
+
+        const batch = writeBatch(db);
+
+        // 1. Restaurer site_config
+        const configRef = doc(db, 'settings', 'site_config');
+        batch.set(configRef, json.data.site_config);
+
+        // Note: Pour les autres collections, on va simplement ajouter/écraser.
+        // Comme on utilise des IDs générés par Firestore pour les sous-collections, 
+        // une restauration complète nécessiterait de supprimer les existants d'abord.
+        // Par simplicité et sécurité (pour éviter de tout supprimer en cas de mauvais fichier), 
+        // on va demander confirmation ou simplement écraser si l'ID correspond.
+        
+        // Mais pour une vraie "restauration", on devrait nettoyer. 
+        // Demandons à l'utilisateur via une alerte standard.
+        if (!confirm("Attention : Cette opération va importer les données. Elle n'efface pas vos données actuelles mais peut créer des doublons pour les services et prestations. Continuer ?")) {
+          setImporting(false);
+          return;
+        }
+
+        // Restauration des services
+        if (Array.isArray(json.data.services)) {
+          for (const s of json.data.services) {
+            const { id, ...data } = s;
+            const ref = id ? doc(db, 'services', id) : doc(collection(db, 'services'));
+            batch.set(ref, data);
+          }
+        }
+
+        // Restauration des features
+        if (Array.isArray(json.data.boarding_features)) {
+          for (const f of json.data.boarding_features) {
+            const { id, ...data } = f;
+            const ref = id ? doc(db, 'boarding_features', id) : doc(collection(db, 'boarding_features'));
+            batch.set(ref, data);
+          }
+        }
+
+        // Restauration des liens
+        if (Array.isArray(json.data.links)) {
+          for (const l of json.data.links) {
+            const { id, ...data } = l;
+            const ref = id ? doc(db, 'links', id) : doc(collection(db, 'links'));
+            batch.set(ref, data);
+          }
+        }
+
+        await batch.commit();
+        setMessage({ text: "Données importées avec succès ! Rechargez la page.", type: 'success' });
+        setTimeout(() => window.location.reload(), 2000);
+      } catch (err: any) {
+        console.error(err);
+        setMessage({ text: "Erreur lors de l'importation : " + err.message, type: 'error' });
+      } finally {
+        setImporting(false);
+        // Reset input
+        e.target.value = '';
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h3 className="text-xl font-bold text-stone-800 mb-2">Sauvegarde et Restauration</h3>
+        <p className="text-stone-600">
+          Utilisez ces outils pour sauvegarder vos textes, services et configurations dans un fichier sur votre ordinateur, 
+          ou pour les restaurer plus tard.
+        </p>
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-6">
+        {/* Export */}
+        <div className="p-6 bg-stone-50 rounded-2xl border border-stone-100 flex flex-col items-center text-center">
+          <Download className="w-10 h-10 text-orange-600 mb-4" />
+          <h4 className="font-bold text-stone-800 mb-2">Exporter mes données</h4>
+          <p className="text-sm text-stone-500 mb-6 font-sans">
+            Génère un fichier JSON contenant toute la configuration actuelle de votre site.
+          </p>
+          <button 
+            onClick={handleExport}
+            className="mt-auto flex items-center px-6 py-3 bg-stone-900 text-white rounded-xl hover:bg-stone-800 transition-colors"
+          >
+            Télécharger la sauvegarde
+          </button>
+        </div>
+
+        {/* Import */}
+        <div className="p-6 bg-stone-50 rounded-2xl border border-stone-100 flex flex-col items-center text-center">
+          <Upload className="w-10 h-10 text-stone-400 mb-4" />
+          <h4 className="font-bold text-stone-800 mb-2">Importer des données</h4>
+          <p className="text-sm text-stone-500 mb-6 font-sans">
+            Sélectionnez un fichier de sauvegarde (.json) pour restaurer vos données précédentes.
+          </p>
+          <label className="mt-auto cursor-pointer flex items-center px-6 py-3 bg-white border border-stone-200 text-stone-700 rounded-xl hover:bg-stone-50 transition-colors shadow-sm">
+            <input type="file" accept=".json" className="hidden" onChange={handleImport} disabled={importing} />
+            {importing ? "Importation en cours..." : "Choisir un fichier"}
+          </label>
+        </div>
+      </div>
+
+      {message && (
+        <div className={`p-4 rounded-xl flex items-center ${message.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+          {message.type === 'error' && <AlertTriangle className="w-5 h-5 mr-3 flex-shrink-0" />}
+          {message.text}
+        </div>
+      )}
+
+      <div className="p-4 bg-orange-50 rounded-xl border border-orange-100">
+        <div className="flex">
+          <AlertTriangle className="w-5 h-5 text-orange-600 mr-3 flex-shrink-0" />
+          <div>
+            <p className="text-sm font-bold text-orange-850">Important</p>
+            <p className="text-xs text-orange-800">
+              L'importation de données n'écrase pas systématiquement tout. Si vous avez déjà des services créés, ils pourraient être doublés si le fichier contient les mêmes services avec des identifiants différents.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function InputField({ label, value, onChange }: { label: string, value: string, onChange: (v: string) => void }) {
